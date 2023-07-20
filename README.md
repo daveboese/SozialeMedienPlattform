@@ -1,0 +1,2 @@
+# SozialeMedienPlattform
+ Unser Projekt "Soziale Medienplattform" zielt darauf ab, eine innovative Plattform zu entwickeln, auf der Benutzer ihre sozialen Netzwerke miteinander verbinden und interagieren können. Die Plattform soll es Benutzern ermöglichen, Posts zu erstellen, zu teilen und zu kommentieren, Freundschaften zu knüpfen und Gruppen zu bilden. Wir wollen eine intuitive Benutzeroberfläche entwickeln, die ein nahtloses und unterhaltsames Erlebnis für unsere Nutzer bietet.
