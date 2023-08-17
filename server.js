@@ -1,14 +1,18 @@
 const express = require("express");
+const userRoutes = require("./routes/user.routes");
+require("dotenv").config({ path: "./config/.env" });
+require("./config/db");
 
 const app = express();
-const port = 5000;
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.json("Hallo MDR");
-});
+//routes
+app.use("/api/user", userRoutes);
 
-app.listen(port, () => {
-  console.log(`Der Server ist unter http://localhost:${port} erreichbar.`);
+//Server
+app.listen(process.env.PORT, () => {
+  console.log(
+    `Der Server ist unter http://localhost:${process.env.PORT} erreichbar.`
+  );
 });
