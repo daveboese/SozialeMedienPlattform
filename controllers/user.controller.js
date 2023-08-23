@@ -1,11 +1,13 @@
 const UserModel = require("../models/user.model");
 const ObjectID = require("mongoose").Types.ObjectId;
 
+//Ruft alle Benutzer ab (ohne Passwörter)
 module.exports.getAllUsers = async (req, res) => {
   const users = await UserModel.find().select("-password");
   res.status(200).json(users);
 };
 
+//Ruft die Informationen eines bestimmten Benutzers anhand seiner ID ab
 module.exports.userInfo = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -16,6 +18,7 @@ module.exports.userInfo = (req, res) => {
   }).select("-password");
 };
 
+//Aktualisiert die Bio eines Benutzers anhand seiner ID
 module.exports.updateUser = async (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -37,6 +40,7 @@ module.exports.updateUser = async (req, res) => {
   }
 };
 
+//Löscht einen Benutzer anhand seiner ID
 module.exports.deleteUser = async (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -49,6 +53,7 @@ module.exports.deleteUser = async (req, res) => {
   }
 };
 
+//Fügt einen Benutzer zu den Followern hinzu
 module.exports.follow = async (req, res) => {
   if (
     !ObjectID.isValid(req.params.id) ||
@@ -78,6 +83,7 @@ module.exports.follow = async (req, res) => {
   }
 };
 
+//Entfernt einen Benutzer von den Followern
 module.exports.unfollow = async (req, res) => {
   if (
     !ObjectID.isValid(req.params.id) ||

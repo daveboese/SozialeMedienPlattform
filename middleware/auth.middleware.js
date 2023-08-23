@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const UserModel = require("../models/user.model");
 
+//Überprüft den JWT-Token in den Cookies und stellt den Benutzer für die Anfragen zur Verfügung
 module.exports.checkUser = (req, res, next) => {
   const token = req.cookies.jwt;
   if (token) {
@@ -21,6 +22,7 @@ module.exports.checkUser = (req, res, next) => {
   }
 };
 
+//Erfordert eine gültige JWT-Authentifizierung für bestimmte Aktionen
 module.exports.requireAuth = (req, res, next) => {
   const token = req.cookies.jwt;
   if (token) {

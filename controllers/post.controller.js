@@ -7,6 +7,7 @@ const fs = require("fs");
 const { promisify } = require("util");
 const pipeline = promisify(require("stream").pipeline);
 
+//Ruft alle Beiträge ab und sortiert sie nach Erstellungsdatum.
 module.exports.readPost = (req, res) => {
   PostModel.find((err, docs) => {
     if (!err) res.send(docs);
@@ -14,6 +15,7 @@ module.exports.readPost = (req, res) => {
   }).sort({ createdAt: -1 });
 };
 
+//Erstellt einen neuen Beitrag. Unterstützt Bilder und Videos.
 module.exports.createPost = async (req, res) => {
   let fileName;
 
@@ -58,6 +60,7 @@ module.exports.createPost = async (req, res) => {
   }
 };
 
+//Aktualisiert den Inhalt eines Beitrags anhand seiner ID
 module.exports.updatePost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -77,6 +80,7 @@ module.exports.updatePost = (req, res) => {
   );
 };
 
+// Löscht einen Beitrag anhand seiner ID
 module.exports.deletePost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -87,6 +91,7 @@ module.exports.deletePost = (req, res) => {
   });
 };
 
+//Fügt einen Benutzer zur Liste der Beitrag-Liker hinzu
 module.exports.likePost = async (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -116,6 +121,7 @@ module.exports.likePost = async (req, res) => {
   }
 };
 
+//Entfernt einen Benutzer aus der Liste der Beitrag-Liker
 module.exports.unlikePost = async (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -145,6 +151,7 @@ module.exports.unlikePost = async (req, res) => {
   }
 };
 
+//Fügt einen Kommentar zu einem Beitrag hinzu
 module.exports.commentPost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -171,6 +178,7 @@ module.exports.commentPost = (req, res) => {
   }
 };
 
+// Bearbeitet den Text eines Kommentars
 module.exports.editCommentPost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
@@ -194,6 +202,7 @@ module.exports.editCommentPost = (req, res) => {
   }
 };
 
+//Löscht einen Kommentar aus einem Beitrag
 module.exports.deleteCommentPost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
     return res.status(400).send("ID unknown : " + req.params.id);
