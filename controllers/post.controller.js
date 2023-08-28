@@ -1,4 +1,4 @@
-const postModel = require("../models/post.model");
+//const postModel = require("../models/post.model");
 const PostModel = require("../models/post.model");
 const UserModel = require("../models/user.model");
 const { uploadErrors } = require("../utils/errors.utils");
@@ -8,58 +8,61 @@ const { promisify } = require("util");
 const pipeline = promisify(require("stream").pipeline);
 
 //Ruft alle Beiträge ab und sortiert sie nach Erstellungsdatum.
-module.exports.readPost = (req, res) => {
-  PostModel.find((err, docs) => {
-    if (!err) res.send(docs);
-    else console.log("Error to get data : " + err);
-  }).sort({ createdAt: -1 });
+module.exports.readPost = async (req, res) => {
+  try {
+    const posts = await PostModel.find().sort({ createdAt: -1 });
+    res.send(posts);
+  } catch (err) {
+    console.log("Error fetching posts: " + err);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 //Erstellt einen neuen Beitrag. Unterstützt Bilder und Videos.
 module.exports.createPost = async (req, res) => {
-  let fileName;
-
-  if (req.file !== null) {
-    try {
-      if (
-        req.file.detectedMimeType != "image/jpg" &&
-        req.file.detectedMimeType != "image/png" &&
-        req.file.detectedMimeType != "image/jpeg"
-      )
-        throw Error("invalid file");
-
-      if (req.file.size > 500000) throw Error("max size");
-    } catch (err) {
-      const errors = uploadErrors(err);
-      return res.status(201).json({ errors });
-    }
-    fileName = req.body.posterId + Date.now() + ".jpg";
-
-    await pipeline(
-      req.file.stream,
-      fs.createWriteStream(
-        `${__dirname}/../client/public/uploads/posts/${fileName}`
-      )
-    );
-  }
-
-  const newPost = new postModel({
-    posterId: req.body.posterId,
-    message: req.body.message,
-    picture: req.file !== null ? "./uploads/posts/" + fileName : "",
-    video: req.body.video,
-    likers: [],
-    comments: [],
-  });
-
   try {
+    let fileName = "";
+
+    if (req.file) {
+      if (
+        req.file.detectedMimeType !== "image/jpg" &&
+        req.file.detectedMimeType !== "image/png" &&
+        req.file.detectedMimeType !== "image/jpeg"
+      ) {
+        throw new Error("Invalid file format");
+      }
+
+      if (req.file.size > 500000) {
+        throw new Error("File size exceeds 500 KB");
+      }
+
+      fileName = req.body.posterId + Date.now() + ".jpg";
+
+      await pipeline(
+        req.file.stream,
+        fs.createWriteStream(
+          `${__dirname}/../client/public/uploads/posts/${fileName}`
+        )
+      );
+    }
+
+    const newPost = new PostModel({
+      posterId: req.body.posterId,
+      message: req.body.message,
+      picture: req.file ? "./uploads/posts/" + fileName : "",
+      video: req.body.video,
+      likers: [],
+      comments: [],
+    });
+
     const post = await newPost.save();
-    return res.status(201).json(post);
+    res.status(201).json(post);
   } catch (err) {
-    return res.status(400).send(err);
+    console.log("Error creating post: " + err);
+    const errors = uploadErrors(err);
+    res.status(400).json({ errors });
   }
 };
-
 //Aktualisiert den Inhalt eines Beitrags anhand seiner ID
 module.exports.updatePost = (req, res) => {
   if (!ObjectID.isValid(req.params.id))
