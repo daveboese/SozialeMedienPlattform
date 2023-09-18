@@ -1,7 +1,16 @@
 const router = require("express").Router();
 const postController = require("../controllers/post.controller");
 const multer = require("multer");
-const upload = multer();
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./client/public/uploads/posts/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "_" + file.originalname);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 router.get("/", postController.readPost); // Ruft alle Beiträge ab
 router.post("/", upload.single("file"), postController.createPost); // Erstellt einen neuen Beitrag

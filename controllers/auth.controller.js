@@ -1,5 +1,3 @@
-//Authentifizierung Controller
-
 const UserModel = require("../models/user.model");
 const jwt = require("jsonwebtoken");
 const { signUpErrors, signInErrors } = require("../utils/errors.utils");
@@ -12,7 +10,6 @@ const createToken = (id) => {
   });
 };
 
-//Registriert einen neuen Benutzer. Nimmt pseudo, email und password entgegen.
 module.exports.signUp = async (req, res) => {
   const { pseudo, email, password } = req.body;
 
@@ -25,7 +22,6 @@ module.exports.signUp = async (req, res) => {
   }
 };
 
-//Meldet einen Benutzer an und generiert ein JWT-Token. Nimmt email und password entgegen.
 module.exports.signIn = async (req, res) => {
   const { email, password } = req.body;
 
@@ -40,7 +36,6 @@ module.exports.signIn = async (req, res) => {
   }
 };
 
-//Löscht den JWT-Token aus den Cookies und leitet auf die Startseite um.
 module.exports.logout = (req, res) => {
   res.cookie("jwt", "", { maxAge: 1 });
   res.redirect("/");

@@ -4,6 +4,7 @@ const UserModel = require("../models/user.model");
 const { uploadErrors } = require("../utils/errors.utils");
 const ObjectID = require("mongoose").Types.ObjectId;
 const fs = require("fs");
+const fse = require("fs-extra");
 const { promisify } = require("util");
 const pipeline = promisify(require("stream").pipeline);
 
@@ -20,78 +21,109 @@ module.exports.readPost = async (req, res) => {
 
 //Erstellt einen neuen Beitrag. Unterstützt Bilder und Videos.
 module.exports.createPost = async (req, res) => {
-  try {
-    let fileName = "";
+  const fileName = req.body.posterId + Date.now() + ".jpg";
+  if (req.file !== undefined) {
+    try {
+      console.log("lala");
 
-    if (req.file) {
       if (
-        req.file.detectedMimeType !== "image/jpg" &&
-        req.file.detectedMimeType !== "image/png" &&
-        req.file.detectedMimeType !== "image/jpeg"
-      ) {
-        throw new Error("Invalid file format");
-      }
+        req.file.mimetype != "image/jpg" &&
+        req.file.mimetype != "image/png" &&
+        req.file.mimetype != "image/jpeg"
+      )
+        throw Error("Invalid file format");
 
-      if (req.file.size > 500000) {
-        throw new Error("File size exceeds 500 KB");
-      }
-
-      fileName = req.body.posterId + Date.now() + ".jpg";
-
-      await pipeline(
-        req.file.stream,
-        fs.createWriteStream(
-          `${__dirname}/../client/public/uploads/posts/${fileName}`
-        )
-      );
+      if (req.file.size > 5000000000000000)
+        throw Error("File size exceeds 500 KB");
+    } catch (err) {
+      const errors = uploadErrors(err);
+      return res.status(201).json({ errors });
     }
 
-    const newPost = new PostModel({
-      posterId: req.body.posterId,
-      message: req.body.message,
-      picture: req.file ? "./uploads/posts/" + fileName : "",
-      video: req.body.video,
-      likers: [],
-      comments: [],
-    });
+    const fileStream = fs.createReadStream(req.file.path);
 
+    await pipeline(
+      fileStream,
+      fs.createWriteStream(
+        `${__dirname}/../client/public/uploads/posts/${fileName}`
+      )
+    );
+  }
+
+  const newPost = new PostModel({
+    posterId: req.body.posterId,
+    message: req.body.message,
+    picture: req.file ? "./uploads/posts/" + fileName : "",
+    video: req.body.video,
+    likers: [],
+    comments: [],
+  });
+
+  try {
+    console.log("maman");
     const post = await newPost.save();
     res.status(201).json(post);
   } catch (err) {
     console.log("Error creating post: " + err);
     const errors = uploadErrors(err);
     res.status(400).json({ errors });
+  } finally {
+    // Vider le dossier temporaire
+    try {
+      await fse.emptyDir(`${__dirname}/../client/public/uploads/temp/`);
+      // console.log("Dossier temporaire vidé.");
+    } catch (err) {
+      console.error("Error while emptying the temporary folder:", err);
+    }
   }
 };
 //Aktualisiert den Inhalt eines Beitrags anhand seiner ID
-module.exports.updatePost = (req, res) => {
-  if (!ObjectID.isValid(req.params.id))
-    return res.status(400).send("ID unknown : " + req.params.id);
+// Update a post by its ID
+module.exports.updatePost = async (req, res) => {
+  if (!ObjectID.isValid(req.params.id)) {
+    return res.status(400).send("ID unknown: " + req.params.id);
+  }
 
   const updatedRecord = {
     message: req.body.message,
   };
 
-  PostModel.findByIdAndUpdate(
-    req.params.id,
-    { $set: updatedRecord },
-    { new: true },
-    (err, docs) => {
-      if (!err) res.send(docs);
-      else console.log("Update error : " + err);
+  try {
+    const updatedPost = await PostModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: updatedRecord },
+      { new: true }
+    );
+
+    if (!updatedPost) {
+      return res.status(404).send("Post not found");
     }
-  );
+
+    res.status(200).json(updatedPost);
+  } catch (err) {
+    console.error("Update error: " + err);
+    res.status(500).send({ message: "Internal server error" });
+  }
 };
 
 // Löscht einen Beitrag anhand seiner ID
-module.exports.deletePost = (req, res) => {
-  if (!ObjectID.isValid(req.params.id))
-    return res.status(400).send("ID unknown : " + req.params.id);
+module.exports.deletePost = async (req, res) => {
+  if (!ObjectID.isValid(req.params.id)) {
+    return res.status(400).send("ID unknown: " + req.params.id);
+  }
 
-  PostModel.findByIdAndRemove(req.params.id, (err, docs) => {
-    if (!err) res.send(docs);
-    else console.log("Delete error : " + err);
-  });
+  try {
+    const deletedPost = await PostModel.findByIdAndRemove(req.params.id);
+
+    if (!deletedPost) {
+      return res.status(404).send("Post not found");
+    }
+
+    res.status(200).json(deletedPost);
+  } catch (err) {
+    console.error("Delete error: " + err);
+    res.status(500).send({ message: "Internal server error" });
+  }
 };
 
 //Fügt einen Benutzer zur Liste der Beitrag-Liker hinzu
@@ -100,15 +132,17 @@ module.exports.likePost = async (req, res) => {
     return res.status(400).send("ID unknown : " + req.params.id);
 
   try {
-    await PostModel.findByIdAndUpdate(
+    const updatedPost = await PostModel.findByIdAndUpdate(
       req.params.id,
       {
         $addToSet: { likers: req.body.id },
       },
       { new: true }
-    )
-      .then((data) => res.send(data))
-      .catch((err) => res.status(500).send({ message: err }));
+    );
+
+    if (!updatedPost) {
+      return res.status(404).send("Post not found");
+    }
 
     await UserModel.findByIdAndUpdate(
       req.body.id,
@@ -116,41 +150,48 @@ module.exports.likePost = async (req, res) => {
         $addToSet: { likes: req.params.id },
       },
       { new: true }
-    )
-      .then((data) => res.send(data))
-      .catch((err) => res.status(500).send({ message: err }));
+    );
+
+    res.status(200).json(updatedPost);
   } catch (err) {
-    return res.status(400).send(err);
+    console.error("Like error: " + err);
+    res.status(500).send({ message: "Internal server error" });
   }
 };
 
 //Entfernt einen Benutzer aus der Liste der Beitrag-Liker
+// Unlike a post by removing user's ID from likers array
 module.exports.unlikePost = async (req, res) => {
-  if (!ObjectID.isValid(req.params.id))
-    return res.status(400).send("ID unknown : " + req.params.id);
+  if (!ObjectID.isValid(req.params.id)) {
+    return res.status(400).send("ID unknown: " + req.params.id);
+  }
 
   try {
-    await PostModel.findByIdAndUpdate(
+    const updatedPost = await PostModel.findByIdAndUpdate(
       req.params.id,
       {
         $pull: { likers: req.body.id },
       },
       { new: true }
-    )
-      .then((data) => res.send(data))
-      .catch((err) => res.status(500).send({ message: err }));
+    );
 
+    if (!updatedPost) {
+      return res.status(404).send("Post not found");
+    }
+
+    // Also remove the post's ID from user's likes array
     await UserModel.findByIdAndUpdate(
       req.body.id,
       {
         $pull: { likes: req.params.id },
       },
       { new: true }
-    )
-      .then((data) => res.send(data))
-      .catch((err) => res.status(500).send({ message: err }));
+    );
+
+    res.status(200).json(updatedPost);
   } catch (err) {
-    return res.status(400).send(err);
+    console.error("Unlike error: " + err);
+    res.status(500).send({ message: "Internal server error" });
   }
 };
 
@@ -182,26 +223,34 @@ module.exports.commentPost = (req, res) => {
 };
 
 // Bearbeitet den Text eines Kommentars
-module.exports.editCommentPost = (req, res) => {
-  if (!ObjectID.isValid(req.params.id))
-    return res.status(400).send("ID unknown : " + req.params.id);
+module.exports.editCommentPost = async (req, res) => {
+  if (!ObjectID.isValid(req.params.id)) {
+    return res.status(400).send("ID unknown: " + req.params.id);
+  }
 
   try {
-    return PostModel.findById(req.params.id, (err, docs) => {
-      const theComment = docs.comments.find((comment) =>
-        comment._id.equals(req.body.commentId)
-      );
+    const updatedPost = await PostModel.findById(req.params.id);
 
-      if (!theComment) return res.status(404).send("Comment not found");
-      theComment.text = req.body.text;
+    if (!updatedPost) {
+      return res.status(404).send("Post not found");
+    }
 
-      return docs.save((err) => {
-        if (!err) return res.status(200).send(docs);
-        return res.status(500).send(err);
-      });
-    });
+    const theComment = updatedPost.comments.find((comment) =>
+      comment._id.equals(req.body.commentId)
+    );
+
+    if (!theComment) {
+      return res.status(404).send("Comment not found");
+    }
+
+    theComment.text = req.body.text;
+
+    await updatedPost.save();
+
+    res.status(200).json(updatedPost);
   } catch (err) {
-    return res.status(400).send(err);
+    console.error("Edit comment error: " + err);
+    res.status(500).send({ message: "Internal server error" });
   }
 };
 
